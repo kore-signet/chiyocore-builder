@@ -2,50 +2,77 @@
 
 an implementation of [meshcore](https://meshcore.co.uk/) for ESP32s, written in rust!
 
-## warning labels
+# chiyocore-builder
+this is *not* the main firmware code - that lives [over here!](https://github.com/kore-signet/chiyocore).
 
-### radio settings are currently hardcoded
-they're set to max tx/rx power and the US/Canada meshcore preset. alter as you wish/need
-
-### be respectful to your mesh
-don't spam flood packets, be careful with how you run it!
+this is the chiyocore-builder, which automagically puts together a chiyocore firmware build with your selection of modules, for your preferred board!
 
 ### general disclaimer
 this is extremely experimental and not guaranteed to work or not fry your radio/board. i have had success running it on my xiaos3 kit, but please tread with care and do not assume things will work! 
 
-## how to get it running
+# how the builder works
 
-### set up a board definition
-you'll need to set up a board definition file with the pin-out for the LoRa module, plus ram size for heap allocations. [you can see an example here](blossoms/boards/xiao-s3-kit.toml)
+a chiyocore build is made up of a stackup of a number of nodes (meshcore entities with their own key-pair), each of which has a set of modules or layers attached to it.
 
-### configure your firmware build
-the firmware is generated off a TOML file [here's an example](blossoms/setups/sample.toml)
+these layers are what actually implement behavior - e.g, as a companion node, or as a repeater, etc.
+
+## so, you'll need:
+
+### a board definition
+this lays out the pin-out of the LoRa module, as well as how much RAM your board has.
+
+for example, the setup for a heltecv4 board might look like this:
+
+```toml
+[ram]
+reclaimed = "73744" # this is ram reclaimed from the esp-idf bootloader!
+main = "1024 * 32"
+psram_mode = "quad"
+
+[pins]
+sclk = "GPIO7"
+mosi = "GPIO9"
+miso = "GPIO8"
+cs = "GPIO41"
+reset = "GPIO42"
+busy = "GPIO40"
+dio1 = "GPIO39"
+rx_en = "GPIO38"
+spi = "SPI2"
+```
+
+### a firmware build config
+
+this sets up how many nodes you'll have running on your board, and what handlers/layers each should have. a couple kinds of handler are built-in, but you can also add other crates with their own modules!
 
 ```toml
 [firmware]
-stack_size = 32768
-psram_mode = "quad"
+stack_size = 32768 # how large the stack for the node-running task should be
 
 [chiyocore]
-config = { "wifi.pw" = "nya", "wifi.ssid" = "nya" }
-default_channels = ["#test", "#emitestcorner"]
+config = { "wifi.pw" = "nya", "wifi.ssid" = "nya" } # default config parameters, if not already set
+default_channels = ["#test", "#emitestcorner"] # default meshcore channels to setup keys for, alongside the public channel
 
+# set up one node with id chiyo0
 [stackup.chiyo0]
-id = "chiyo0"
+id = "chiyo0" # node id
 
+# add a companion to that node
 [stackup.chiyo0.layers.companion-0]
-type = "chiyocore_companion::companionv2::Companion" # specifies layer rust type
+type = "chiyocore_companion::companionv2::Companion" # the rust type of the handler
 id = "chiyocompanion0"
-tcp_port = 5000
+tcp_port = 5000 # tcp port for the companion to listen on
 
+# add a ping bot
 [stackup.chiyo0.layers.ping_bot]
-type = "chiyocore::ping_bot::PingBot"
-name = "cafe / chiyobot 🌃☕"
-channels = ["#test", "#emitestcorner"]
+type = "chiyocore::ping_bot::PingBot" 
+name = "cafe / chiyobot 🌃☕" # what name should the bot use when answering pings?
+channels = ["#test", "#emitestcorner"] # channels for the bot to be active in
 
+# add a bot from another crate
 [stackup.chiyo0.layers.ttc_bot]
-deps = { chiyocore-ttc = { git = "https://codeberg.org/emisignet/chiyocore-ttc.git" } } # ping bot and companion are built-in, but here, we're adding a module from git!
-type = "chiyocore_ttc::TTCBot"
+deps = { chiyocore-ttc = { git = "https://codeberg.org/emisignet/chiyocore-ttc.git" } } # this is just a set of regular cargo dependencies! you can import them from git, local path, crates.io, etc.
+type = "chiyocore_ttc::TTCBot" # type of handler
 ```
 
 ### generate your firmware
@@ -62,24 +89,3 @@ with meshcore-cli:
 
 ## why chiyocore?
 [i think sakura chiyono o is neat](https://www.youtube.com/watch?v=e3YcYLE90po)
-
-## development notes!
-
-### project architecture
-the main meshcore logic is written in [firmware/chiyocore](firmware/chiyocore/). the goals are that this should provide a framework that handles:
-- keeping track of contacts, channels and received packets
-- most packet sending logic
-- most packet decoding logic
-so that layers built on top of it can remain as high-level as possible.
-
-said layers are configured by the [builder](builder/) tool, which takes a board configuration plus a firmware setup config and generates a temporary binary crate linking all the configured handler layers together with the specified board pinout. it currently relies on statically knowing all possible layers and configurations (via the shared [chiyocore-config](chiyocore-config/) crate), though this should become more flexible in future.
-
-example implementations of handler layers are the [companion](firmware/companion/) implementation, as well as the example [TTC bus arrival time bot](firmware/chiyo-ttc/).
-
-### todos & random thoughts
-- more radio support!!
-- partition tables need to be configurable
-- is packet delaying logic correct?
-- need a reorg/cleanup pass
-- stack usage could likely be improved
-- currently, the firmware builder & runtime crates all depend on a shared config crate. this creates a little bit of lock-in that i don't love

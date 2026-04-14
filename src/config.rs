@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 pub struct FullConfig {
     pub firmware: FirmwareConfig,
     pub chiyocore: ChiyocoreBaseConf,
-    pub stackup: Stackup
+    pub stackup: Stackup,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -21,7 +21,6 @@ pub struct ChiyocoreBaseConf {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct FirmwareConfig {
     pub stack_size: usize,
-    pub psram_mode: String
 }
 
 pub type Stackup = HashMap<String, NodeConfig>;
@@ -29,7 +28,7 @@ pub type Stackup = HashMap<String, NodeConfig>;
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct NodeConfig {
     pub id: String,
-    pub layers: HashMap<String, LayerConfig>
+    pub layers: HashMap<String, LayerConfig>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -39,10 +38,10 @@ pub struct LayerConfig {
     #[serde(rename = "type")]
     pub kind: String,
     #[serde(flatten)]
-    pub values: HashMap<String, serde_json::Value>
+    pub values: HashMap<String, serde_json::Value>,
 }
 
 // pub struct NodeConfig {
 
-    // pub tcp_port: u16
+// pub tcp_port: u16
 // }

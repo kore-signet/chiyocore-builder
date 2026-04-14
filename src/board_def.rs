@@ -11,7 +11,7 @@ pub struct BoardFile {
 pub struct BoardRam {
     pub reclaimed: String,
     pub main: String,
-    pub psram: bool,
+    pub psram_mode: Option<String>,
 }
 
 impl FormatInto<Rust> for BoardRam {
@@ -19,13 +19,15 @@ impl FormatInto<Rust> for BoardRam {
         let BoardRam {
             reclaimed,
             main,
-            psram,
+            psram_mode,
         } = self;
+
+        let psram_enabled = psram_mode.is_some();
 
         quote_in! {*tokens =>
             esp_alloc::heap_allocator!(#[esp_hal::ram(reclaimed)] size: $reclaimed);
             esp_alloc::heap_allocator!(size: $main);
-            $(if psram {
+            $(if psram_enabled {
                 esp_alloc::psram_allocator!(peripherals.PSRAM, esp_hal::psram);
             })
         }
@@ -64,8 +66,8 @@ impl FormatInto<Rust> for BoardPins {
                 genco::quote! {
                     Some(peripherals.$rx_en)
                 }
-            },
-            None => { 
+            }
+            None => {
                 genco::quote! {
                     Option::<esp_hal::gpio::AnyPin>::None
                 }

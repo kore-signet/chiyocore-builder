@@ -25,7 +25,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
 pub struct GenConfigOptions {
-    pub psram_mode: String
+    pub psram_mode: Option<String>,
 }
 
 pub fn gen_config(GenConfigOptions { psram_mode }: GenConfigOptions) -> CargoConfig {
@@ -41,7 +41,7 @@ pub fn gen_config(GenConfigOptions { psram_mode }: GenConfigOptions) -> CargoCon
     };
 
     let unstable = CargoUnstable {
-        build_std: vec!["alloc".into(), "core".into()]
+        build_std: vec!["alloc".into(), "core".into()],
     };
 
     let build = CargoBuild {
@@ -62,7 +62,7 @@ pub struct CargoConfig {
     target: HashMap<String, TargetOpts>,
     unstable: CargoUnstable,
     build: CargoBuild,
-    env: CargoEnv
+    env: CargoEnv,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -73,23 +73,26 @@ pub struct CargoEnv {
     ar: String,
     #[serde(rename = "CFLAGS")]
     cflags: String,
-    #[serde(rename = "ESP_HAL_CONFIG_PSRAM_MODE")]
-    psram_mode: String
+    #[serde(
+        rename = "ESP_HAL_CONFIG_PSRAM_MODE",
+        skip_serializing_if = "Option::is_none"
+    )]
+    psram_mode: Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct CargoBuild {
     rustflags: Vec<String>,
-    target: String
+    target: String,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct CargoUnstable {
     #[serde(rename = "build-std")]
-    build_std: Vec<String>
+    build_std: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct TargetOpts {
-    runner: String
+    runner: String,
 }

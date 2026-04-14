@@ -1,13 +1,14 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::collections::HashMap;
 
 // use chiyocore_config::{ChiyocoreConfig, };
-use clap::Parser;
 use genco::{Tokens, lang::Rust, quote, quote_fn, quote_in, tokens::FormatInto};
 use litemap::LiteMap;
 use rust_format::Formatter;
 
-use crate::{board_def::BoardFile, config::{ChiyocoreBaseConf, FirmwareConfig, FullConfig, LayerConfig, NodeConfig, Stackup}};
-
+use crate::{
+    board_def::BoardFile,
+    config::{ChiyocoreBaseConf, FirmwareConfig, FullConfig, LayerConfig, NodeConfig},
+};
 
 fn fmt_litemap(lm: LiteMap<String, String>) -> impl FormatInto<Rust> {
     let lm = lm
@@ -24,12 +25,8 @@ fn fmt_litemap(lm: LiteMap<String, String>) -> impl FormatInto<Rust> {
     }
 }
 
-
 fn gen_layer_types(nodes: impl Iterator<Item = LayerConfig>) -> impl FormatInto<Rust> {
-    let nodes = nodes
-        .into_iter()
-        .map(|k| k.kind)
-        .collect::<Vec<String>>();
+    let nodes = nodes.into_iter().map(|k| k.kind).collect::<Vec<String>>();
     quote_fn! {
         ($(for n in nodes join (, ) => $n))
     }
@@ -59,7 +56,7 @@ fn generate_task(nodes: impl Iterator<Item = NodeConfig>) -> impl FormatInto<Rus
 fn node_cfg(NodeConfig { layers, .. }: NodeConfig) -> impl FormatInto<Rust> {
     // let layers = layers.into_values();
 
-    let layers = layers.into_iter().map(|(k,v)| {
+    let layers = layers.into_iter().map(|(k, v)| {
         let v = serde_json::to_string(&v.values).unwrap();
         quote! {
             ($[str]($[const](k)), serde_json::from_str($[str]($[const](v))).unwrap())
@@ -132,10 +129,17 @@ fn add_channels(channels: Vec<String>) -> impl FormatInto<Rust> {
 }
 
 pub fn gen_main(BoardFile { ram, pins }: BoardFile, conf: FullConfig) -> String {
-    let FullConfig { firmware, chiyocore, stackup } = conf;
+    let FullConfig {
+        firmware,
+        chiyocore,
+        stackup,
+    } = conf;
 
     let FirmwareConfig { stack_size, .. } = firmware;
-    let ChiyocoreBaseConf { config, default_channels } = chiyocore;
+    let ChiyocoreBaseConf {
+        config,
+        default_channels,
+    } = chiyocore;
 
     let global_conf = fmt_litemap(config);
     let gen_task = generate_task(stackup.clone().into_values());
@@ -233,7 +237,7 @@ pub fn gen_main(BoardFile { ram, pins }: BoardFile, conf: FullConfig) -> String 
     let template_rs = include_str!("../res/template.rs");
 
     let complete = format!("{template_rs}{generated}");
-    let complete = rust_format::RustFmt::new().format_str(&complete).unwrap();
+    
 
-    complete
+    rust_format::RustFmt::new().format_str(&complete).unwrap()
 }

@@ -1,7 +1,7 @@
 [ram]
 reclaimed = "73744"
 main = "1024 * 32"
-psram = true
+psram_mode = "quad"
 
 [pins]
 sclk = "GPIO9"
@@ -11,5 +11,4 @@ cs = "GPIO8"
 reset = "GPIO12"
 busy = "GPIO13"
 dio1 = "GPIO14"
-# rx_en = "GPIO38"
 spi = "SPI2"

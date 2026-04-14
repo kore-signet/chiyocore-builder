@@ -1,6 +1,5 @@
 [firmware]
 stack_size = 32768
-psram_mode = "quad"
 
 [chiyocore]
 config = { "wifi.pw" = "nya", "wifi.ssid" = "nya" }
