@@ -11,8 +11,15 @@ pub fn gen_cargo(
     extra_deps: HashMap<String, DependencyDetail>,
 ) -> Manifest {
     let base_manifest = toml::from_str(include_str!("../res/base_crate.toml")).unwrap();
-    
+
     gen_config_from_base(chiyo_dep, extra_deps, base_manifest)
+}
+
+fn gen_chiyo_dep(chiyo_dep: &DependencyDetail, sub_dep: &str) -> Dependency {
+    let mut dep_detail = chiyo_dep.clone();
+    let base_path = format!("{}/{sub_dep}", dep_detail.path.unwrap());
+    dep_detail.path = Some(base_path);
+    Dependency::Detailed(Box::new(dep_detail))
 }
 
 fn gen_config_from_base(
@@ -22,13 +29,13 @@ fn gen_config_from_base(
 ) -> Manifest {
     let chiyo_dep = Box::new(chiyo_dep);
     base.dependencies
-        .insert("chiyocore".into(), Dependency::Detailed(chiyo_dep.clone()));
+        .insert("chiyocore".into(), gen_chiyo_dep(&chiyo_dep, "chiyocore"));
     base.dependencies.insert(
         "chiyocore-companion".into(),
-        Dependency::Detailed(chiyo_dep.clone()),
+        gen_chiyo_dep(&chiyo_dep, "companion"),
     );
     base.dependencies
-        .insert("chiyo-hal".into(), Dependency::Detailed(chiyo_dep.clone()));
+        .insert("chiyo-hal".into(), gen_chiyo_dep(&chiyo_dep, "chiyo-hal"));
 
     for (dep_name, dep) in extra_deps {
         base.dependencies

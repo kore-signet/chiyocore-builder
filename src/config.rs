@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use cargo_toml::DependencyDetail;
 use litemap::LiteMap;
+use meshcore::payloads::AdvertType;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -27,6 +28,8 @@ pub type Stackup = HashMap<String, NodeConfig>;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct NodeConfig {
+    pub name: String,
+    pub role: AdvertType,
     pub id: String,
     pub layers: HashMap<String, LayerConfig>,
 }

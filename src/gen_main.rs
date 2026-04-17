@@ -3,6 +3,7 @@ use std::collections::HashMap;
 // use chiyocore_config::{ChiyocoreConfig, };
 use genco::{Tokens, lang::Rust, quote, quote_fn, quote_in, tokens::FormatInto};
 use litemap::LiteMap;
+use meshcore::payloads::{AdvertType, AdvertisementExtraData, AppdataFlags};
 use rust_format::Formatter;
 
 use crate::{
@@ -68,12 +69,23 @@ fn node_cfg(NodeConfig { layers, .. }: NodeConfig) -> impl FormatInto<Rust> {
     }
 }
 
+fn role_to_tokens(role: AdvertType) -> Tokens<Rust> {
+    match role {
+        AdvertType::None => quote! { AdvertType::None },
+        AdvertType::ChatNode => quote! { AdvertType::ChatNode },
+        AdvertType::Repeater => quote! { AdvertType::Repeater },
+        AdvertType::RoomServer => quote! { AdvertType::RoomServer },
+        AdvertType::Sensor => quote! { AdvertType::Sensor },
+    }
+}
+
 fn load_and_add_nodes(nodes: HashMap<String, NodeConfig>) -> impl FormatInto<Rust> {
     let cfgs = nodes.clone().into_values().map(node_cfg);
-    let loads = nodes.into_values().map(|NodeConfig { id, layers }| {
+    let loads = nodes.into_values().map(|NodeConfig { id, layers, name, role }| {
         let layer_tys = gen_layer_types(layers.clone().into_values());
+        let role = role_to_tokens(role);
         quote_fn! {
-            load_node_slot::<_, $layer_tys>(c$[str]($[const](id)), &slot_db).await
+            load_node_slot::<$layer_tys>($[str]($[const](name)), $role, c$[str]($[const](id)), &slot_db).await
         }
     });
 
@@ -84,7 +96,34 @@ fn load_and_add_nodes(nodes: HashMap<String, NodeConfig>) -> impl FormatInto<Rus
 
 fn node_load_fn() -> impl FormatInto<Rust> {
     quote_fn! {
-        async fn load_node_slot<const FS_SIZE: usize, T: chiyocore::builder::BuildChiyocoreLayer>(slot: &CStr, slot_db: &SimpleFileDb<FS_SIZE>) -> ChiyocoreNode<T> {
+        use chiyocore::meshcore::payloads::{AppdataFlags, AdvertType, AdvertisementExtraData};
+        async fn load_node_slot<T: chiyocore::builder::BuildChiyocoreLayer>(name: &'static str, advert_role: AdvertType, slot: &CStr, slot_db: &SimpleFileDb<{ chiyocore::storage::FS_SIZE }>) -> ChiyocoreNode<T> {
+                let advert_flags = match advert_role {
+                    AdvertType::None => AppdataFlags::HAS_NAME,
+                    AdvertType::ChatNode => AppdataFlags::HAS_NAME | AppdataFlags::IS_CHAT_NODE,
+                    AdvertType::Repeater => AppdataFlags::HAS_NAME | AppdataFlags::IS_REPEATER,
+                    AdvertType::RoomServer => AppdataFlags::HAS_NAME | AppdataFlags::IS_ROOM_SERVER,
+                    AdvertType::Sensor => AppdataFlags::HAS_NAME | AppdataFlags::IS_SENSOR
+                };
+
+                let def_advert = AdvertisementExtraData {
+                    flags: advert_flags,
+                    latitude: None,
+                    longitude: None,
+                    feature_1: None,
+                    feature_2: None,
+                    name: Some(name.as_bytes().into()),
+                };
+
+                // let advert = slot_db.get_persistable()
+
+                let advert_key = alloc::format!("{}-advert", slot.to_string_lossy());
+                let mut advert_key = advert_key.into_bytes();
+                advert_key.push(0);
+                let advert_key = alloc::ffi::CString::from_vec_with_nul(advert_key).unwrap();
+                let advert = slot_db.get_persistable(&advert_key, || def_advert).await.unwrap();
+
+
                 let identity = if let Some(id) = slot_db
                     .get::<LocalIdentity>(slot)
                     .await
@@ -99,10 +138,11 @@ fn node_load_fn() -> impl FormatInto<Rust> {
                     slot_db.insert(slot, &id).await.unwrap();
                     id
                 };
-                let node: ChiyocoreNode<T> = ChiyocoreNode::new(identity);
+                let node: ChiyocoreNode<T> = ChiyocoreNode::new(identity, advert);
                 node
         }
     }
+    // use meshcore::payloads::ad
 }
 
 fn add_channels(channels: Vec<String>) -> impl FormatInto<Rust> {
@@ -237,7 +277,6 @@ pub fn gen_main(BoardFile { ram, pins }: BoardFile, conf: FullConfig) -> String 
     let template_rs = include_str!("../res/template.rs");
 
     let complete = format!("{template_rs}{generated}");
-    
 
     rust_format::RustFmt::new().format_str(&complete).unwrap()
 }

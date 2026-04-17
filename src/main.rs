@@ -25,6 +25,8 @@ struct GenArgs {
     board: PathBuf,
     #[arg(short, long)]
     out: PathBuf,
+    #[arg(long)]
+    chiyo_path: Option<String>,
 }
 
 fn main() {
@@ -43,9 +45,16 @@ fn main() {
 
     let main_rs = gen_main(board, firmware);
 
-    let chiyo_dep = DependencyDetail {
-        git: Some("https://github.com/kore-signet/chiyocore.git".into()),
-        ..Default::default()
+    let chiyo_dep = if let Some(path) = args.chiyo_path {
+        DependencyDetail {
+            path: Some(path),
+            ..Default::default()
+        }
+    } else {
+        DependencyDetail {
+            git: Some("https://github.com/kore-signet/chiyocore.git".into()),
+            ..Default::default()
+        }
     };
 
     let cargo_toml = gen_cargo(chiyo_dep, extra_deps);
