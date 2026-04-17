@@ -17,8 +17,11 @@ pub fn gen_cargo(
 
 fn gen_chiyo_dep(chiyo_dep: &DependencyDetail, sub_dep: &str) -> Dependency {
     let mut dep_detail = chiyo_dep.clone();
-    let base_path = format!("{}/{sub_dep}", dep_detail.path.unwrap());
-    dep_detail.path = Some(base_path);
+    if let Some(base_path) = chiyo_dep.path.as_ref() {
+        let base_path = format!("{base_path}/{sub_dep}");
+        dep_detail.path = Some(base_path);
+    }
+
     Dependency::Detailed(Box::new(dep_detail))
 }
 
