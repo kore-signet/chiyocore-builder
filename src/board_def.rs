@@ -44,6 +44,7 @@ pub struct BoardPins {
     pub busy: String,
     pub dio1: String,
     pub rx_en: Option<String>,
+    pub board_en: Option<String>,
     pub spi: String,
 }
 
@@ -59,12 +60,26 @@ impl FormatInto<Rust> for BoardPins {
             dio1,
             rx_en,
             spi,
+            board_en
         } = self;
 
         let rx_en = match rx_en {
             Some(rx_en) => {
                 genco::quote! {
                     Some(peripherals.$rx_en)
+                }
+            }
+            None => {
+                genco::quote! {
+                    Option::<esp_hal::gpio::AnyPin>::None
+                }
+            }
+        };
+
+        let board_en =  match board_en {
+            Some(board_en) => {
+                genco::quote! {
+                    Some(peripherals.$board_en)
                 }
             }
             None => {
@@ -84,6 +99,7 @@ impl FormatInto<Rust> for BoardPins {
                 busy: peripherals.$busy,
                 dio1: peripherals.$dio1,
                 rx_en: $rx_en,
+                board_en: $board_en,
                 spi: peripherals.$spi
             }
         }
